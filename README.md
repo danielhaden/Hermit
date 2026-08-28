@@ -22,6 +22,17 @@ Two run configurations are provided (Run and Debug, or F5):
   `.scratch-library/` in the working tree, so you can try things without
   touching the books you actually track. The folder is gitignored.
 
+## Tests
+
+```bash
+uv pip install -r requirements-dev.txt
+.venv/bin/pytest
+```
+
+Tests run offscreen and generate their own PDFs, so no book files are needed
+and the real library is never touched — `HERMIT_DATA_DIR` is pointed at a
+scratch directory for every test.
+
 ## How it works
 
 - **Books are indexed in place.** Adding a book records its path; Hermit never
