@@ -5,6 +5,7 @@ import sys
 from PySide6.QtWidgets import QApplication
 
 from hermit.model.library import Library
+from hermit.model.settings import Settings
 from hermit.ui.main_window import MainWindow
 
 
@@ -14,12 +15,14 @@ def main() -> int:
     app.setApplicationDisplayName("Hermit")
 
     library = Library()
+    settings = Settings()
     try:
-        window = MainWindow(library)
+        window = MainWindow(library, settings)
         window.show()
         return app.exec()
     finally:
         library.close()
+        settings.close()
 
 
 if __name__ == "__main__":

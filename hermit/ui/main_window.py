@@ -12,9 +12,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from hermit.model import paths
 from hermit.model.book import Book
 from hermit.model.library import Library
+from hermit.model.settings import Settings
 from hermit.ui.library_panel import LibraryPanel
 from hermit.ui.reader_view import ReaderView
 
@@ -24,9 +24,10 @@ _PDF_FILTER = "PDF files (*.pdf);;All files (*)"
 class MainWindow(QMainWindow):
     """Wires the library table to the reading pane and keeps the two in step."""
 
-    def __init__(self, library: Library) -> None:
+    def __init__(self, library: Library, settings: Settings) -> None:
         super().__init__()
         self._library = library
+        self._settings = settings
         self._current: Book | None = None
 
         self.setWindowTitle("Hermit")
@@ -85,18 +86,27 @@ class MainWindow(QMainWindow):
         zoom_out.triggered.connect(self._reader.zoom_out)
         view_menu.addAction(zoom_out)
 
+        settings_menu = self.menuBar().addMenu("&Settings")
+        self._folder_action = QAction("Default Library Folder…", self)
+        # macOS relocates actions it reads as preferences into the app menu;
+        # keep this one where the user was told to look for it.
+        self._folder_action.setMenuRole(QAction.MenuRole.NoRole)
+        self._folder_action.triggered.connect(self.choose_library_folder)
+        settings_menu.addAction(self._folder_action)
+        self._refresh_folder_action()
+
     # -- adding books -----------------------------------------------------
 
     def add_books(self) -> None:
         files, _ = QFileDialog.getOpenFileNames(
-            self, "Add Books", str(paths.default_browse_dir()), _PDF_FILTER
+            self, "Add Books", str(self._settings.browse_folder()), _PDF_FILTER
         )
         if files:
             self._add_paths([Path(f) for f in files])
 
     def add_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
-            self, "Add Folder", str(paths.default_browse_dir())
+            self, "Add Folder", str(self._settings.browse_folder())
         )
         if folder:
             added = self._library.add_folder(Path(folder))
@@ -119,6 +129,37 @@ class MainWindow(QMainWindow):
                 else "Nothing added - those books are already in the library."
             )
             self.statusBar().showMessage(hint, 5000)
+
+    # -- the default library folder ---------------------------------------
+
+    def choose_library_folder(self) -> None:
+        """Nominate the folder the user keeps books in, and offer to index it."""
+        folder = QFileDialog.getExistingDirectory(
+            self, "Choose Default Library Folder", str(self._settings.browse_folder())
+        )
+        if not folder:
+            return
+
+        chosen = Path(folder)
+        self._settings.set_library_folder(chosen)
+        self._refresh_folder_action()
+        self.statusBar().showMessage(f"Default library folder: {chosen}", 5000)
+
+        scan = QMessageBox.question(
+            self,
+            "Add Books From This Folder",
+            f"Add the PDFs in “{chosen.name}” to your library now?\n\n"
+            "Files are indexed where they are - nothing is copied or moved.",
+        )
+        if scan == QMessageBox.StandardButton.Yes:
+            self._report_added(self._library.add_folder(chosen), scanned_folder=True)
+
+    def _refresh_folder_action(self) -> None:
+        """Show the current folder on the menu item, so the setting is visible."""
+        folder = self._settings.library_folder()
+        self._folder_action.setToolTip(str(folder) if folder else "Not set")
+        suffix = f"  ({folder.name})" if folder else ""
+        self._folder_action.setText(f"Default Library Folder…{suffix}")
 
     # -- removing ---------------------------------------------------------
 

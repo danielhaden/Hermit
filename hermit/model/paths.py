@@ -32,13 +32,3 @@ def data_dir() -> Path:
 def database_path() -> Path:
     """Return the path to the library database (books and reading position)."""
     return data_dir() / "hermit.db"
-
-
-def default_browse_dir() -> Path:
-    """Return the folder the 'Add Books' dialog should open in.
-
-    Purely a convenience starting point - Hermit indexes files wherever they
-    live and treats no folder as special.
-    """
-    biblio = Path.home() / "biblio"
-    return biblio if biblio.is_dir() else Path.home()

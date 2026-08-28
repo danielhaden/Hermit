@@ -23,6 +23,10 @@ uv pip install -r requirements.txt
   `HERMIT_DATA_DIR` to point somewhere else.
 - **PDFs are detected by content**, not by file extension, so books saved
   without a `.pdf` suffix are still recognised.
+- **Settings → Default Library Folder…** nominates the folder you keep books
+  in. File dialogs open there, and Hermit offers to index it when you set it.
+  Unset, dialogs open at your home folder. The setting is stored in the
+  database, not hardcoded.
 - **Your place is remembered.** The page you were on is saved as you read, and
   the book reopens there.
 - Title and author are read from the PDF's own metadata, falling back to the
@@ -38,6 +42,7 @@ uv pip install -r requirements.txt
         paths.py           data directory and database location
         book.py            the Book record
         library.py         SQLite index: add, remove, record position
+        settings.py        key/value preferences (default library folder)
         pdf_info.py        PDF sniffing and metadata extraction
       ui/
         main_window.py     splitter, menus, wiring
