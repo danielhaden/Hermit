@@ -8,7 +8,9 @@ build/
 dist/
 
 # Local library data (normally lives outside the repo, but guard against a
-# stray HERMIT_DATA_DIR=. pointing the database in-tree)
+# stray HERMIT_DATA_DIR=. pointing the database in-tree - the VS Code
+# "scratch library" run config does exactly that on purpose)
+.scratch-library/
 *.db
 *.sqlite
 *.sqlite3

@@ -13,6 +13,15 @@ uv pip install -r requirements.txt
 .venv/bin/python -m hermit
 ```
 
+### In VS Code
+
+Two run configurations are provided (Run and Debug, or F5):
+
+- **Hermit** — runs against your real library.
+- **Hermit (scratch library)** — points `HERMIT_DATA_DIR` at
+  `.scratch-library/` in the working tree, so you can try things without
+  touching the books you actually track. The folder is gitignored.
+
 ## How it works
 
 - **Books are indexed in place.** Adding a book records its path; Hermit never
