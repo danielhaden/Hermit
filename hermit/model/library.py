@@ -1,6 +1,7 @@
 """The library: a SQLite index of book files and where you left off in them."""
 
 import sqlite3
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,6 +21,20 @@ CREATE TABLE IF NOT EXISTS books (
     opened_at  TEXT
 );
 """
+
+
+@dataclass
+class AddReport:
+    """What came of an attempt to add files: some land, some don't.
+
+    Callers need the difference. A file skipped because it is already in the
+    library is not the same as one skipped because it isn't a book, and a user
+    who picked a file by hand deserves to be told which happened.
+    """
+
+    added: list = field(default_factory=list)
+    duplicates: list = field(default_factory=list)
+    not_books: list = field(default_factory=list)
 
 
 def _now() -> str:
@@ -60,9 +75,14 @@ class Library:
 
     def add_file(self, path: Path) -> Book | None:
         """Index one file. Returns ``None`` if it is not a PDF or is a duplicate."""
-        path = path.expanduser().resolve()
+        book, _ = self._add_one(path)
+        return book
+
+    def _add_one(self, path: Path) -> tuple[Book | None, str]:
+        """Index one file, reporting why it was skipped when it was."""
+        path = Path(path).expanduser().resolve()
         if not is_pdf(path):
-            return None
+            return (None, "not_a_book")
         title, author, page_count = read_metadata(path)
         cursor = self._connection.execute(
             "INSERT OR IGNORE INTO books "
@@ -71,18 +91,29 @@ class Library:
         )
         self._connection.commit()
         if cursor.rowcount == 0:  # already in the library
-            return None
+            return (None, "duplicate")
         row = self._connection.execute(
             "SELECT * FROM books WHERE id = ?", (cursor.lastrowid,)
         ).fetchone()
-        return _to_book(row)
+        return (_to_book(row), "added")
 
-    def add_folder(self, folder: Path, recursive: bool = True) -> list[Book]:
+    def add_files(self, paths) -> AddReport:
+        """Index several files, recording what happened to each."""
+        report = AddReport()
+        for path in paths:
+            book, outcome = self._add_one(path)
+            if outcome == "added":
+                report.added.append(book)
+            elif outcome == "duplicate":
+                report.duplicates.append(Path(path))
+            else:
+                report.not_books.append(Path(path))
+        return report
+
+    def add_folder(self, folder: Path, recursive: bool = True) -> AddReport:
         """Index every PDF in a folder, skipping ones already tracked."""
         pattern = "**/*" if recursive else "*"
-        candidates = sorted(p for p in folder.glob(pattern) if p.is_file())
-        added = [self.add_file(path) for path in candidates]
-        return [book for book in added if book is not None]
+        return self.add_files(sorted(p for p in folder.glob(pattern) if p.is_file()))
 
     def remove(self, book_id: int) -> None:
         """Drop a book from the library. The file on disk is left alone."""
