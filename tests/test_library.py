@@ -44,14 +44,17 @@ def test_adds_a_folder_skipping_non_pdfs(library, make_pdf, tmp_path):
     make_pdf("two.pdf", pages=3)
     make_pdf("three-no-extension", pages=4)
     (tmp_path / "readme.txt").write_text("not a book")
-    added = library.add_folder(tmp_path)
-    assert len(added) == 3
+    report = library.add_folder(tmp_path)
+    assert len(report.added) == 3
+    assert report.duplicates == []
 
 
 def test_rescanning_a_folder_adds_nothing_new(library, make_pdf, tmp_path):
     make_pdf("one.pdf", pages=2)
     library.add_folder(tmp_path)
-    assert library.add_folder(tmp_path) == []
+    rescan = library.add_folder(tmp_path)
+    assert rescan.added == []
+    assert len(rescan.duplicates) == 1
 
 
 def test_title_and_author_edits_persist(library, book_pdf, data_dir):
@@ -83,3 +86,31 @@ def test_a_moved_file_stays_in_the_library(library, book_pdf):
     assert len(library.books()) == 1
     assert not library.books()[0].exists
     assert book.id == library.books()[0].id
+
+
+def test_a_book_without_a_pdf_extension_can_be_added(library, make_pdf):
+    """The bug: books are routinely stored with no .pdf suffix.
+
+    The model always handled these; the file dialog was hiding them. This
+    pins the model half so the fix can't rot from underneath the UI.
+    """
+    bare = make_pdf("The Spiral Calendar and its Effects on Financial Markets")
+    assert bare.suffix == ""
+    report = library.add_files([bare])
+    assert len(report.added) == 1
+    assert report.added[0].page_count == 12
+
+
+def test_add_files_separates_the_reasons_for_skipping(library, make_pdf, tmp_path):
+    """A duplicate and a non-book are both 'not added' but not the same thing."""
+    first = make_pdf("first.pdf", pages=2)
+    library.add_file(first)
+    fresh = make_pdf("fresh.pdf", pages=2)
+    decoy = tmp_path / "notes.txt"
+    decoy.write_text("not a book")
+
+    report = library.add_files([first, fresh, decoy])
+
+    assert [b.path.name for b in report.added] == ["fresh.pdf"]
+    assert [p.name for p in report.duplicates] == ["first.pdf"]
+    assert [p.name for p in report.not_books] == ["notes.txt"]

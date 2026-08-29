@@ -18,7 +18,40 @@ from hermit.model.settings import Settings
 from hermit.ui.library_panel import LibraryPanel
 from hermit.ui.reader_view import ReaderView
 
-_PDF_FILTER = "PDF files (*.pdf);;All files (*)"
+# All files first, deliberately. Books are routinely stored without a .pdf
+# extension, and a "*.pdf" filter greys those out - the app would appear to
+# refuse a book it can read perfectly well. What a file actually is gets
+# decided by its header, after selection.
+_FILE_FILTER = "All files (*);;PDF files (*.pdf)"
+
+
+def _describe(report, scanned_folder: bool) -> str:
+    """Phrase an AddReport for the status bar.
+
+    A folder scan passes over non-books as a matter of course, so those are
+    not worth reporting. Files the user picked by hand are different: being
+    told nothing happened, with no reason, is what makes the app feel broken.
+    """
+    if report.added:
+        noun = "book" if len(report.added) == 1 else "books"
+        message = f"Added {len(report.added)} {noun}"
+        if report.duplicates:
+            message += f" · {len(report.duplicates)} already in the library"
+        if report.not_books and not scanned_folder:
+            message += f" · {len(report.not_books)} not a PDF"
+        return message
+
+    if report.not_books and not scanned_folder:
+        if len(report.not_books) == 1:
+            return f"“{report.not_books[0].name}” is not a PDF, so it was not added"
+        return f"{len(report.not_books)} of those files are not PDFs, so none were added"
+    if report.duplicates:
+        if len(report.duplicates) == 1:
+            return "That book is already in the library"
+        return f"Those {len(report.duplicates)} books are already in the library"
+    if scanned_folder:
+        return "No books found in that folder"
+    return "Nothing added"
 
 
 class MainWindow(QMainWindow):
@@ -99,36 +132,27 @@ class MainWindow(QMainWindow):
 
     def add_books(self) -> None:
         files, _ = QFileDialog.getOpenFileNames(
-            self, "Add Books", str(self._settings.browse_folder()), _PDF_FILTER
+            self, "Add Books", str(self._settings.browse_folder()), _FILE_FILTER
         )
         if files:
-            self._add_paths([Path(f) for f in files])
+            self._report(
+                self._library.add_files([Path(f) for f in files]),
+                scanned_folder=False,
+            )
 
     def add_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
             self, "Add Folder", str(self._settings.browse_folder())
         )
         if folder:
-            added = self._library.add_folder(Path(folder))
-            self._report_added(added, scanned_folder=True)
+            self._report(self._library.add_folder(Path(folder)), scanned_folder=True)
 
-    def _add_paths(self, files: list[Path]) -> None:
-        added = [book for book in (self._library.add_file(p) for p in files) if book]
-        self._report_added(added, scanned_folder=False)
-
-    def _report_added(self, added: list[Book], scanned_folder: bool) -> None:
-        self._panel.model.add_books(added)
-        if added:
-            self._panel.select_book_id(added[0].id)
-            noun = "book" if len(added) == 1 else "books"
-            self.statusBar().showMessage(f"Added {len(added)} {noun}", 5000)
-        else:
-            hint = (
-                "No new PDFs found in that folder."
-                if scanned_folder
-                else "Nothing added - those books are already in the library."
-            )
-            self.statusBar().showMessage(hint, 5000)
+    def _report(self, report, scanned_folder: bool) -> None:
+        """Show what was added, and account for anything that was not."""
+        self._panel.model.add_books(report.added)
+        if report.added:
+            self._panel.select_book_id(report.added[0].id)
+        self.statusBar().showMessage(_describe(report, scanned_folder), 8000)
 
     # -- the default library folder ---------------------------------------
 
@@ -152,7 +176,7 @@ class MainWindow(QMainWindow):
             "Files are indexed where they are - nothing is copied or moved.",
         )
         if scan == QMessageBox.StandardButton.Yes:
-            self._report_added(self._library.add_folder(chosen), scanned_folder=True)
+            self._report(self._library.add_folder(chosen), scanned_folder=True)
 
     def _refresh_folder_action(self) -> None:
         """Show the current folder on the menu item, so the setting is visible."""
