@@ -11,13 +11,13 @@
    git switch -c <type>/<short-description>
    ```
    Branch name prefixes:
-   | Prefix      | For                            |
-   |-------------|--------------------------------|
-   | `feat/`     | new features                   |
-   | `fix/`      | bug fixes                      |
-   | `chore/`    | tooling, deps, maintenance     |
-   | `docs/`     | documentation only             |
-   | `refactor/` | non-behavioral restructuring   |
+   | Prefix                | For                            |
+   |-----------------------|--------------------------------|
+   | `feat/` or `feature/` | new features                   |
+   | `fix/`                | bug fixes                      |
+   | `chore/`              | tooling, deps, maintenance     |
+   | `docs/`               | documentation only             |
+   | `refactor/`           | non-behavioral restructuring   |
 
 2. **Commit** in focused, logical steps (see commit style below).
 
@@ -53,6 +53,9 @@ Hermit is a public repo. Before every commit:
 
 ## Before opening a PR
 
+- **Run the tests:** `pytest`. They run offscreen against a scratch
+  `HERMIT_DATA_DIR` and generate their own PDFs, so they touch nothing of
+  yours.
 - **Run the app:** `python -m hermit` — confirm it launches and your change
   works.
 - **GUI changes:** verify offscreen and inspect the result, e.g.
@@ -74,6 +77,9 @@ Hermit is a public repo. Before every commit:
   library leaves it on disk.
 - **PDFs are identified by their `%PDF` header**, not by file extension —
   books are routinely saved without a `.pdf` suffix.
+- **A book is whatever has a `%PDF` header.** Don't put an extension filter
+  in front of the user — file dialogs must not hide books stored without a
+  `.pdf` suffix, which is common.
 - **Reading position is restored behind a guard.** `ReaderView._restore_page`
   suppresses position recording while the view settles. Without it,
   fit-to-width relayout lands the jump on a page boundary and walks the saved
