@@ -1,0 +1,28 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Hermit",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "hermit",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "justMyCode": true
+    },
+    {
+      "name": "Hermit (scratch library)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "hermit",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}/.venv/bin/python",
+      "justMyCode": true,
+      "env": {
+        "HERMIT_DATA_DIR": "${workspaceFolder}/.scratch-library"
+      }
+    }
+  ]
+}
