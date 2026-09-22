@@ -107,16 +107,18 @@ def test_the_layout_survives_a_restart(library, settings, book_pdf, settle, data
     reopened_settings.close()
 
 
-def test_the_library_text_is_a_point_smaller_than_the_interface(
-    library, settings, book_pdf, settle, qapp
+def test_the_library_text_is_set_to_its_own_point_size(
+    library, settings, book_pdf, settle
 ):
-    """The list sits beside the page being read; it should not compete with it."""
+    """Fixed rather than relative: the density is the point of it."""
+    from hermit.ui.library_panel import _TABLE_POINT_SIZE
+
     library.add_file(book_pdf)
     window = _window(library, settings, settle)
     table = window._panel.table
 
-    assert table.font().pointSizeF() == qapp.font().pointSizeF() - 1
-    assert table.horizontalHeader().font().pointSizeF() == table.font().pointSizeF()
+    assert table.font().pointSizeF() == _TABLE_POINT_SIZE
+    assert table.horizontalHeader().font().pointSizeF() == _TABLE_POINT_SIZE
     window.close()
 
 

@@ -100,6 +100,11 @@ class ReaderView(QWidget):
 
     def open(self, path: Path, page: int = 0) -> str | None:
         """Show a book, resuming at ``page``. Returns an error message on failure."""
+        # Guard before loading, not after. Closing one document and opening
+        # another emits page changes of its own, and those arrive while the
+        # outgoing book is still the current one - reported as real turns,
+        # they overwrite its saved position with page 0.
+        self._restoring = True
         error = self._document.load(str(path))
         if error != QPdfDocument.Error.None_:
             self.clear()
@@ -129,7 +134,7 @@ class ReaderView(QWidget):
         self._restoring = False
 
     def clear(self) -> None:
-        self._restoring = False
+        self._restoring = True  # closing emits a page change; ignore it
         self._document.close()
         self._page_total.setText(" of 0 ")
         self._show_document(False)

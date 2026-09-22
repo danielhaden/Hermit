@@ -124,3 +124,44 @@ def test_a_missing_file_keeps_its_saved_position(
 
     assert library.books()[0].last_page == drift_page
     window.close()
+
+
+def test_switching_between_books_keeps_each_ones_place(
+    library, settings, long_book_pdf, make_pdf, drift_page, settle
+):
+    """Each book remembers its own page, including the one being left behind.
+
+    Opening a book emits page changes as the document loads. Attributed to the
+    book still on screen, they overwrite its position with page 0 - so simply
+    glancing at another book lost your place in this one.
+    """
+    second = make_pdf("second-book.pdf", pages=60)
+    library.add_files([long_book_pdf, second])
+    window = _window(library, settings, settle)
+    table = window._panel.table
+
+    table.selectRow(0)
+    settle()
+    first_id = window._panel.selected_book().id
+    window._reader.go_to_page(drift_page)
+    settle()
+
+    saved = lambda book_id: next(
+        b.last_page for b in library.books() if b.id == book_id
+    )
+    assert saved(first_id) == drift_page
+
+    table.selectRow(1)
+    settle()
+    second_id = window._panel.selected_book().id
+    assert second_id != first_id
+    assert saved(first_id) == drift_page  # leaving must not reset it
+
+    window._reader.go_to_page(20)
+    settle()
+    table.selectRow(0)
+    settle()
+
+    assert window._reader.current_page() == drift_page  # resumed
+    assert saved(second_id) == 20  # and the other book kept its place too
+    window.close()

@@ -17,8 +17,9 @@ the left, the selected book rendered on the right. PDF only for now.
   name when the document carries none.
 - **Reader** — continuous-scroll `QPdfView` with page navigation, jump-to-page,
   and fit-width / fit-page / fixed zoom.
-- **Reading position** — saved as you scroll, restored on reopen. Verified
-  stable across repeated reopens.
+- **Reading position** — saved as you scroll, restored on reopen, and kept
+  per book when switching between them. Verified stable across repeated
+  reopens.
 - **Missing files** — a book whose file has moved shows in red italics and
   stays in the library rather than disappearing.
 - **Settings** — `Settings > Default Library Folder…` nominates where books
@@ -27,7 +28,7 @@ the left, the selected book rendered on the right. PDF only for now.
 - **Adding explains itself** — the status bar distinguishes books added,
   books already in the library, and files that aren't PDFs, naming the file
   when it was picked by hand.
-- **Tests** — 44 of them, offscreen, generating their own PDFs against a
+- **Tests** — 47 of them, offscreen, generating their own PDFs against a
   scratch data directory. `pytest`.
 - **VS Code** — run configurations for the app and for a scratch library.
 - **Adjustable layout** — the sidebar drags left to right and every column

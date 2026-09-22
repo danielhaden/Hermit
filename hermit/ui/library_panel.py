@@ -14,9 +14,11 @@ from PySide6.QtWidgets import (
 from hermit.model.book import Book
 from hermit.ui.library_model import LibraryModel
 
-# The library is a dense list beside the page being read; a point smaller
-# than the interface default keeps it subordinate to the book.
-_FONT_REDUCTION = 1
+# The library is a dense list beside the page being read, and is set well
+# below the interface default so it stays subordinate to the book. A fixed
+# size rather than a relative one: the point of it is the density, which a
+# larger system font would otherwise undo.
+_TABLE_POINT_SIZE = 10
 
 _MIN_COLUMN = 48
 _MIN_TITLE = 80
@@ -24,14 +26,11 @@ _DEFAULT_AUTHOR = 110
 _DEFAULT_PAGES = 64
 
 
-def _smaller(font: QFont, points: int = _FONT_REDUCTION) -> QFont:
-    """A copy of a font a point smaller, in whichever unit it happens to use."""
-    smaller = QFont(font)
-    if font.pointSizeF() > 0:
-        smaller.setPointSizeF(max(1.0, font.pointSizeF() - points))
-    else:
-        smaller.setPixelSize(max(1, font.pixelSize() - points))
-    return smaller
+def _table_font(font: QFont, points: int = _TABLE_POINT_SIZE) -> QFont:
+    """A copy of a font at the library's own point size."""
+    sized = QFont(font)
+    sized.setPointSizeF(float(points))
+    return sized
 
 
 class LibraryPanel(QWidget):
@@ -61,7 +60,7 @@ class LibraryPanel(QWidget):
         self.table.verticalHeader().setVisible(False)
         # The header keeps its own font rather than inheriting the view's, so
         # it needs setting too or the column labels stay a point larger.
-        self.table_font = _smaller(self.font())
+        self.table_font = _table_font(self.font())
         self.table.setFont(self.table_font)
         self.table.horizontalHeader().setFont(self.table_font)
         self.model.set_base_font(self.table_font)

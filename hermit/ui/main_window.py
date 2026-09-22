@@ -233,9 +233,11 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"File is missing: {book.path}")
             return
 
+        # Nothing is current while a book is opening, so a stray page change
+        # cannot be recorded against whichever book is on its way out.
+        self._current = None
         error = self._reader.open(book.path, book.last_page)
         if error:
-            self._current = None
             self.statusBar().showMessage(error)
             return
 
