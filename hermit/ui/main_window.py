@@ -24,6 +24,13 @@ from hermit.ui.reader_view import ReaderView
 # decided by its header, after selection.
 _FILE_FILTER = "All files (*);;PDF files (*.pdf)"
 
+# A 4px splitter handle is the macOS default and is genuinely hard to grab;
+# the sidebar reads as fixed when it is merely fiddly.
+_HANDLE_WIDTH = 8
+_MIN_SIDEBAR = 180
+_MIN_READER = 320
+_DEFAULT_SIDEBAR = 320
+
 
 def _describe(report, scanned_folder: bool) -> str:
     """Phrase an AddReport for the status bar.
@@ -69,14 +76,18 @@ class MainWindow(QMainWindow):
         self._panel = LibraryPanel()
         self._reader = ReaderView()
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.addWidget(self._panel)
-        splitter.addWidget(self._reader)
-        splitter.setStretchFactor(0, 0)
-        splitter.setStretchFactor(1, 1)
-        splitter.setSizes([320, 880])  # the reader takes most of the width
-        splitter.setChildrenCollapsible(False)
-        self.setCentralWidget(splitter)
+        self._panel.setMinimumWidth(_MIN_SIDEBAR)
+        self._reader.setMinimumWidth(_MIN_READER)
+
+        self._splitter = QSplitter(Qt.Orientation.Horizontal)
+        self._splitter.addWidget(self._panel)
+        self._splitter.addWidget(self._reader)
+        self._splitter.setStretchFactor(0, 0)
+        self._splitter.setStretchFactor(1, 1)
+        self._splitter.setChildrenCollapsible(False)
+        self._splitter.setHandleWidth(_HANDLE_WIDTH)
+        self.setCentralWidget(self._splitter)
+        self._restore_layout()
 
         self._panel.book_selected.connect(self._on_book_selected)
         self._panel.model.dataChanged.connect(self._on_book_edited)
@@ -251,7 +262,22 @@ class MainWindow(QMainWindow):
         else:
             self._library.set_author(book.id, book.author)
 
+    # -- layout the user has adjusted by hand ------------------------------
+
+    def _restore_layout(self) -> None:
+        """Put the sidebar and columns back where the user last left them."""
+        width = self._settings.sidebar_width() or _DEFAULT_SIDEBAR
+        self._splitter.setSizes([width, max(_MIN_READER, 1200 - width)])
+        self._panel.apply_column_widths(self._settings.column_widths())
+
+    def _save_layout(self) -> None:
+        sizes = self._splitter.sizes()
+        if sizes and sizes[0] > 0:
+            self._settings.set_sidebar_width(sizes[0])
+        self._settings.set_column_widths(self._panel.column_widths())
+
     def closeEvent(self, event) -> None:
+        self._save_layout()
         if self._current is not None:
             self._library.record_position(
                 self._current.id,

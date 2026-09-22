@@ -1,6 +1,6 @@
 # Status
 
-_Last updated: 2026-08-29_
+_Last updated: 2026-09-22_
 
 Hermit is a desktop app for keeping track of digital books: a library table on
 the left, the selected book rendered on the right. PDF only for now.
@@ -27,9 +27,12 @@ the left, the selected book rendered on the right. PDF only for now.
 - **Adding explains itself** — the status bar distinguishes books added,
   books already in the library, and files that aren't PDFs, naming the file
   when it was picked by hand.
-- **Tests** — 38 of them, offscreen, generating their own PDFs against a
+- **Tests** — 44 of them, offscreen, generating their own PDFs against a
   scratch data directory. `pytest`.
 - **VS Code** — run configurations for the app and for a scratch library.
+- **Adjustable layout** — the sidebar drags left to right and every column
+  can be resized. Title fills the leftover room until a column is sized by
+  hand, after which the header is left alone. Both are remembered.
 
 ## Not built yet
 

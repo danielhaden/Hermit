@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS settings (
 """
 
 _LIBRARY_FOLDER = "library_folder"
+_SIDEBAR_WIDTH = "sidebar_width"
+_COLUMN_WIDTHS = "column_widths"
 
 
 class Settings:
@@ -58,3 +60,22 @@ class Settings:
         """
         folder = self.library_folder()
         return folder if folder and folder.is_dir() else Path.home()
+
+    # -- layout the user has adjusted by hand ------------------------------
+
+    def sidebar_width(self) -> int | None:
+        """The width the user dragged the library panel to, if they have."""
+        stored = self.get(_SIDEBAR_WIDTH)
+        return int(stored) if stored.isdigit() else None
+
+    def set_sidebar_width(self, width: int) -> None:
+        self.set(_SIDEBAR_WIDTH, str(int(width)))
+
+    def column_widths(self) -> list[int]:
+        """Saved column widths, or an empty list when none are stored."""
+        stored = self.get(_COLUMN_WIDTHS)
+        parts = [p for p in stored.split(",") if p.strip().isdigit()]
+        return [int(p) for p in parts]
+
+    def set_column_widths(self, widths: list[int]) -> None:
+        self.set(_COLUMN_WIDTHS, ",".join(str(int(w)) for w in widths))
