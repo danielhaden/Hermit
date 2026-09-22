@@ -105,3 +105,36 @@ def test_the_layout_survives_a_restart(library, settings, book_pdf, settle, data
     window.close()
     reopened_library.close()
     reopened_settings.close()
+
+
+def test_the_library_text_is_a_point_smaller_than_the_interface(
+    library, settings, book_pdf, settle, qapp
+):
+    """The list sits beside the page being read; it should not compete with it."""
+    library.add_file(book_pdf)
+    window = _window(library, settings, settle)
+    table = window._panel.table
+
+    assert table.font().pointSizeF() == qapp.font().pointSizeF() - 1
+    assert table.horizontalHeader().font().pointSizeF() == table.font().pointSizeF()
+    window.close()
+
+
+def test_styled_rows_keep_the_table_font_size(
+    library, settings, book_pdf, settle
+):
+    """A missing book is drawn italic - built from a bare QFont it would snap
+    back to the interface default and sit a point larger than every other row."""
+    from pathlib import Path as _Path
+
+    from PySide6.QtCore import Qt
+
+    library.add_file(book_pdf)
+    window = _window(library, settings, settle)
+    panel = window._panel
+    panel.model.book_at(0).path = _Path("/gone/missing.pdf")
+
+    font = panel.model.data(panel.model.index(0, 0), Qt.ItemDataRole.FontRole)
+    assert font.italic()
+    assert font.pointSizeF() == panel.table.font().pointSizeF()
+    window.close()

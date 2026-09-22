@@ -1,6 +1,7 @@
 """The left-hand panel: a filter box and the table of books."""
 
 from PySide6.QtCore import QEvent, QSortFilterProxyModel, Qt, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
@@ -13,10 +14,24 @@ from PySide6.QtWidgets import (
 from hermit.model.book import Book
 from hermit.ui.library_model import LibraryModel
 
+# The library is a dense list beside the page being read; a point smaller
+# than the interface default keeps it subordinate to the book.
+_FONT_REDUCTION = 1
+
 _MIN_COLUMN = 48
 _MIN_TITLE = 80
 _DEFAULT_AUTHOR = 110
 _DEFAULT_PAGES = 64
+
+
+def _smaller(font: QFont, points: int = _FONT_REDUCTION) -> QFont:
+    """A copy of a font a point smaller, in whichever unit it happens to use."""
+    smaller = QFont(font)
+    if font.pointSizeF() > 0:
+        smaller.setPointSizeF(max(1.0, font.pointSizeF() - points))
+    else:
+        smaller.setPixelSize(max(1, font.pixelSize() - points))
+    return smaller
 
 
 class LibraryPanel(QWidget):
@@ -44,6 +59,12 @@ class LibraryPanel(QWidget):
         self.table.setSortingEnabled(True)
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
+        # The header keeps its own font rather than inheriting the view's, so
+        # it needs setting too or the column labels stay a point larger.
+        self.table_font = _smaller(self.font())
+        self.table.setFont(self.table_font)
+        self.table.horizontalHeader().setFont(self.table_font)
+        self.model.set_base_font(self.table_font)
         self.table.setEditTriggers(
             QAbstractItemView.EditTrigger.DoubleClicked
             | QAbstractItemView.EditTrigger.EditKeyPressed
