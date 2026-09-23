@@ -1,6 +1,7 @@
 """The left-hand panel: a filter box and the table of books."""
 
-from PySide6.QtCore import QSortFilterProxyModel, Qt, Signal
+from PySide6.QtCore import QEvent, QSortFilterProxyModel, Qt, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
@@ -12,6 +13,24 @@ from PySide6.QtWidgets import (
 
 from hermit.model.book import Book
 from hermit.ui.library_model import LibraryModel
+
+# The library is a dense list beside the page being read, and is set well
+# below the interface default so it stays subordinate to the book. A fixed
+# size rather than a relative one: the point of it is the density, which a
+# larger system font would otherwise undo.
+_TABLE_POINT_SIZE = 10
+
+_MIN_COLUMN = 48
+_MIN_TITLE = 80
+_DEFAULT_AUTHOR = 110
+_DEFAULT_PAGES = 64
+
+
+def _table_font(font: QFont, points: int = _TABLE_POINT_SIZE) -> QFont:
+    """A copy of a font at the library's own point size."""
+    sized = QFont(font)
+    sized.setPointSizeF(float(points))
+    return sized
 
 
 class LibraryPanel(QWidget):
@@ -39,16 +58,34 @@ class LibraryPanel(QWidget):
         self.table.setSortingEnabled(True)
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
+        # The header keeps its own font rather than inheriting the view's, so
+        # it needs setting too or the column labels stay a point larger.
+        self.table_font = _table_font(self.font())
+        self.table.setFont(self.table_font)
+        self.table.horizontalHeader().setFont(self.table_font)
+        self.model.set_base_font(self.table_font)
         self.table.setEditTriggers(
             QAbstractItemView.EditTrigger.DoubleClicked
             | QAbstractItemView.EditTrigger.EditKeyPressed
         )
 
+        # Every column is Interactive so every one can be dragged. Stretch and
+        # ResizeToContents both look tidy and both refuse to be resized by
+        # hand, which is what made most of this header feel stuck.
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.setColumnWidth(1, 110)
+        for column in range(self.model.columnCount()):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
+        header.setMinimumSectionSize(_MIN_COLUMN)
+        header.setStretchLastSection(False)
+        self._columns_customised = False
+        self._applying_widths = False
+        self._set_section(1, _DEFAULT_AUTHOR)
+        self._set_section(2, _DEFAULT_PAGES)
+        header.sectionResized.connect(self._on_section_resized)
+        # The panel's own resizeEvent arrives before the table has been laid
+        # out inside it, so Title would be fitted against a stale width.
+        # Watching the viewport catches the size that actually matters.
+        self.table.viewport().installEventFilter(self)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 6, 6, 6)
@@ -57,6 +94,49 @@ class LibraryPanel(QWidget):
         layout.addWidget(self.table)
 
         self.table.selectionModel().selectionChanged.connect(self._on_selection)
+
+    # -- column widths ----------------------------------------------------
+
+    def _set_section(self, column: int, width: int) -> None:
+        """Resize a column without it counting as the user's own choice."""
+        self._applying_widths = True
+        self.table.horizontalHeader().resizeSection(column, width)
+        self._applying_widths = False
+
+    def _on_section_resized(self, *_args) -> None:
+        if not self._applying_widths:
+            self._columns_customised = True
+
+    def _fit_title_column(self) -> None:
+        """Give Title whatever room the other columns leave.
+
+        Only until the user sizes a column themselves - after that the header
+        is theirs, and widening the sidebar leaves their proportions alone.
+        """
+        if self._columns_customised:
+            return
+        header = self.table.horizontalHeader()
+        spare = self.table.viewport().width() - (
+            header.sectionSize(1) + header.sectionSize(2)
+        )
+        self._set_section(0, max(_MIN_TITLE, spare))
+
+    def column_widths(self) -> list[int]:
+        header = self.table.horizontalHeader()
+        return [header.sectionSize(c) for c in range(self.model.columnCount())]
+
+    def apply_column_widths(self, widths: list[int]) -> None:
+        """Restore widths saved from a previous session."""
+        if not widths:
+            return
+        for column, width in enumerate(widths[: self.model.columnCount()]):
+            self._set_section(column, max(_MIN_COLUMN, width))
+        self._columns_customised = True
+
+    def eventFilter(self, watched, event) -> bool:
+        if watched is self.table.viewport() and event.type() == QEvent.Type.Resize:
+            self._fit_title_column()
+        return super().eventFilter(watched, event)
 
     # -- selection --------------------------------------------------------
 

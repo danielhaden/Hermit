@@ -15,6 +15,11 @@ class LibraryModel(QAbstractTableModel):
     def __init__(self, books: list[Book] | None = None) -> None:
         super().__init__()
         self._books: list[Book] = list(books or [])
+        self._base_font = QFont()
+
+    def set_base_font(self, font: QFont) -> None:
+        """Match the view's font, so styled rows stay the same size as the rest."""
+        self._base_font = QFont(font)
 
     # -- population -------------------------------------------------------
 
@@ -99,7 +104,7 @@ class LibraryModel(QAbstractTableModel):
             if role == Qt.ItemDataRole.ForegroundRole:
                 return QBrush(_MISSING)
             if role == Qt.ItemDataRole.FontRole:
-                font = QFont()
+                font = QFont(self._base_font)
                 font.setItalic(True)
                 return font
 
